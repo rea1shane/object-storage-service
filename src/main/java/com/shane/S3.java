@@ -2,9 +2,6 @@ package com.shane;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
-import com.amazonaws.services.s3.model.Bucket;
-
-import java.util.List;
 
 public class S3 {
 
@@ -36,37 +33,7 @@ public class S3 {
 
     /**
      * <p>
-     * 列出所有的桶
-     * </p>
-     *
-     * @return 桶列表
-     */
-    public List<Bucket> listBuckets() {
-        return this.s3.listBuckets();
-    }
-
-    /**
-     * <p>
-     * 获取指定的桶
-     * </p>
-     *
-     * @param bucketName 桶的名称
-     * @return 指定名称的桶，没有的话返回 null
-     */
-    public Bucket getBucket(String bucketName) {
-        Bucket bucket = null;
-        List<Bucket> buckets = listBuckets();
-        for (Bucket b : buckets) {
-            if (b.getName().equals(bucketName)) {
-                bucket = b;
-            }
-        }
-        return bucket;
-    }
-
-    /**
-     * <p>
-     * 检查 bucket 是否存在
+     * 检查桶名是否存在
      * </p>
      *
      * @param bucketName 桶的名称
