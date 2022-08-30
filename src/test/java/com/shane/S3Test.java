@@ -6,7 +6,7 @@ public class S3Test {
 
     final static S3 s3Instance = new S3();
 
-    String sourceBucketName = "create-by-java-sdk";
+    String bucketName = "create-by-java-sdk1";
 
     /**
      * <p>
@@ -15,7 +15,7 @@ public class S3Test {
      */
     @Test
     public void testCheckBucketExist() {
-        boolean exist = s3Instance.checkBucketExist(sourceBucketName);
+        boolean exist = s3Instance.checkBucketExist(bucketName);
         System.out.println(exist);
     }
 
@@ -26,8 +26,19 @@ public class S3Test {
      */
     @Test
     public void testCreateBucket() {
-        boolean success = s3Instance.createBucket(sourceBucketName);
-        System.out.println(success);
+        boolean result = s3Instance.createBucket(bucketName);
+        System.out.println(result);
+    }
+
+    /**
+     * <p>
+     * {@link S3#enableBucketVersioning(String)}
+     * </p>
+     */
+    @Test
+    public void testGetBucketLifecycleConfiguration() {
+        boolean result = s3Instance.enableBucketVersioning(bucketName);
+        System.out.println(result);
     }
 
 }

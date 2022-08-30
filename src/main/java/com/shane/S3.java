@@ -2,6 +2,8 @@ package com.shane;
 
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.BucketVersioningConfiguration;
+import com.amazonaws.services.s3.model.SetBucketVersioningConfigurationRequest;
 
 public class S3 {
 
@@ -56,6 +58,26 @@ public class S3 {
             this.s3.createBucket(bucketName);
         } catch (Exception e) {
             System.err.printf("error create bucket [%s]: %s", bucketName, e);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * <p>
+     * 开启桶的版本控制
+     * </p>
+     *
+     * @param bucketName 桶的名称
+     * @return 操作结果
+     */
+    public boolean enableBucketVersioning(String bucketName) {
+        try {
+            BucketVersioningConfiguration configuration = new BucketVersioningConfiguration(BucketVersioningConfiguration.ENABLED);
+            SetBucketVersioningConfigurationRequest request = new SetBucketVersioningConfigurationRequest(bucketName, configuration);
+            this.s3.setBucketVersioningConfiguration(request);
+        } catch (Exception e) {
+            System.err.printf("error enable versioning for bucket [%s]: %s", bucketName, e);
             return false;
         }
         return true;
