@@ -83,4 +83,22 @@ public class S3 {
         return true;
     }
 
+    /**
+     * <p>
+     * 删除桶
+     * </p>
+     *
+     * @param bucketName 桶的名称
+     * @return 操作结果
+     */
+    public boolean deleteBucket(String bucketName) {
+        try {
+            this.s3.deleteBucket(bucketName);
+        } catch (Exception e) {
+            System.err.printf("error delete bucket [%s]: %s", bucketName, e);
+            return false;
+        }
+        return true;
+    }
+
 }
