@@ -5,7 +5,7 @@ import org.junit.Test;
 
 public class S3Test {
 
-    final static ObjectStorageService OBJECT_STORAGE_SERVICE_INSTANCE = new ObjectStorageService();
+    final static ObjectStorageService OSS = new ObjectStorageService();
 
     String bucketName = "create-by-java-sdk-new";
 
@@ -23,7 +23,7 @@ public class S3Test {
     @Test
     public void testInitBucket() {
         System.out.printf("check bucket [%s]...\n", bucketName);
-        boolean exist = OBJECT_STORAGE_SERVICE_INSTANCE.checkBucketExist(bucketName);
+        boolean exist = OSS.checkBucketExist(bucketName);
         if (exist) {
             // TODO 检测 bucket 归属权
             System.out.println("bucket already exist, skip init");
@@ -32,7 +32,7 @@ public class S3Test {
         System.out.println("bucket does not exist");
         System.out.printf("start init bucket [%s]\n", bucketName);
         System.out.println("> create bucket...");
-        boolean r1 = OBJECT_STORAGE_SERVICE_INSTANCE.createBucket(bucketName);
+        boolean r1 = OSS.createBucket(bucketName);
         if (!r1) {
             System.out.println("> create bucket failure");
             rollbackInitBucket(bucketName, false);
@@ -40,7 +40,7 @@ public class S3Test {
         }
         System.out.println("> create bucket success");
         System.out.println("> enable versioning...");
-        boolean r2 = OBJECT_STORAGE_SERVICE_INSTANCE.enableBucketVersioning(bucketName);
+        boolean r2 = OSS.enableBucketVersioning(bucketName);
         if (!r2) {
             System.out.println("> enable versioning failure");
             rollbackInitBucket(bucketName, true);
@@ -48,8 +48,8 @@ public class S3Test {
         }
         System.out.println("> enable versioning success");
         System.out.println("> init policy...");
-        boolean r3 = OBJECT_STORAGE_SERVICE_INSTANCE.setBucketPolicy(bucketName, new Policy()
-                .withStatements(OBJECT_STORAGE_SERVICE_INSTANCE.generateDenyAllActionsStatement(bucketName))
+        boolean r3 = OSS.setBucketPolicy(bucketName, new Policy()
+                .withStatements(OSS.generateDenyAllActionsStatement(bucketName))
         );
         if (!r3) {
             System.out.println("> init policy failure");
@@ -73,7 +73,7 @@ public class S3Test {
         System.out.println("start rollback");
         if (bucketCreated) {
             System.out.println("> delete bucket...");
-            boolean r = OBJECT_STORAGE_SERVICE_INSTANCE.deleteBucket(bucketName);
+            boolean r = OSS.deleteBucket(bucketName);
             if (!r) {
                 System.out.println("> delete bucket failure");
                 System.out.println("rollback failure");
@@ -86,7 +86,7 @@ public class S3Test {
 
     @Test
     public void testFunc() {
-        System.out.println(new Policy().withStatements(OBJECT_STORAGE_SERVICE_INSTANCE.generateDenyAllActionsStatement(bucketName)).toJson());
+        System.out.println(new Policy().withStatements(OSS.generateDenyAllActionsStatement(bucketName)).toJson());
     }
 
 }
