@@ -1,28 +1,29 @@
 package com.shane;
 
+import com.amazonaws.auth.policy.Policy;
 import org.junit.Test;
 
 public class S3Test {
 
-    final static S3 s3Instance = new S3();
+    final static ObjectStorageService OBJECT_STORAGE_SERVICE_INSTANCE = new ObjectStorageService();
 
-    String bucketName = "create-by-java-sdk1";
+    String bucketName = "create-by-java-sdk-new";
 
     /**
      * <p>
-     * {@link S3#checkBucketExist(String)}
+     * {@link ObjectStorageService#checkBucketExist(String)}
      * </p>
      * <p>
-     * {@link S3#createBucket(String)}
+     * {@link ObjectStorageService#createBucket(String)}
      * </p>
      * <p>
-     * {@link S3#enableBucketVersioning(String)}
+     * {@link ObjectStorageService#enableBucketVersioning(String)}
      * </p>
      */
     @Test
     public void testInitBucket() {
         System.out.printf("check bucket [%s]...\n", bucketName);
-        boolean exist = s3Instance.checkBucketExist(bucketName);
+        boolean exist = OBJECT_STORAGE_SERVICE_INSTANCE.checkBucketExist(bucketName);
         if (exist) {
             // TODO 检测 bucket 归属权
             System.out.println("bucket already exist, skip init");
@@ -31,7 +32,7 @@ public class S3Test {
         System.out.println("bucket does not exist");
         System.out.printf("start init bucket [%s]\n", bucketName);
         System.out.println("> create bucket...");
-        boolean r1 = s3Instance.createBucket(bucketName);
+        boolean r1 = OBJECT_STORAGE_SERVICE_INSTANCE.createBucket(bucketName);
         if (!r1) {
             System.out.println("> create bucket failure");
             rollbackInitBucket(bucketName, false);
@@ -39,19 +40,29 @@ public class S3Test {
         }
         System.out.println("> create bucket success");
         System.out.println("> enable versioning...");
-        boolean r2 = s3Instance.enableBucketVersioning(bucketName);
+        boolean r2 = OBJECT_STORAGE_SERVICE_INSTANCE.enableBucketVersioning(bucketName);
         if (!r2) {
             System.out.println("> enable versioning failure");
             rollbackInitBucket(bucketName, true);
             return;
         }
         System.out.println("> enable versioning success");
+        System.out.println("> init policy...");
+        boolean r3 = OBJECT_STORAGE_SERVICE_INSTANCE.setBucketPolicy(bucketName, new Policy()
+                .withStatements(OBJECT_STORAGE_SERVICE_INSTANCE.generateDenyAllActionsStatement(bucketName))
+        );
+        if (!r3) {
+            System.out.println("> init policy failure");
+            rollbackInitBucket(bucketName, true);
+            return;
+        }
+        System.out.println("> init policy success");
         System.out.println("init bucket success");
     }
 
     /**
      * <p>
-     * {@link S3#deleteBucket(String)}
+     * {@link ObjectStorageService#deleteBucket(String)}
      * </p>
      *
      * @param bucketName    桶的名称
@@ -62,7 +73,7 @@ public class S3Test {
         System.out.println("start rollback");
         if (bucketCreated) {
             System.out.println("> delete bucket...");
-            boolean r = s3Instance.deleteBucket(bucketName);
+            boolean r = OBJECT_STORAGE_SERVICE_INSTANCE.deleteBucket(bucketName);
             if (!r) {
                 System.out.println("> delete bucket failure");
                 System.out.println("rollback failure");
@@ -71,6 +82,11 @@ public class S3Test {
             System.out.println("> delete bucket success");
         }
         System.out.println("rollback success");
+    }
+
+    @Test
+    public void testFunc() {
+        System.out.println(new Policy().withStatements(OBJECT_STORAGE_SERVICE_INSTANCE.generateDenyAllActionsStatement(bucketName)).toJson());
     }
 
 }
