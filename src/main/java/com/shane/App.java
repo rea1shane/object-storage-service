@@ -17,7 +17,7 @@ public class App {
     private static final String BUCKET_NAME = "aml-bucket";
 
     private ObjectStorageService oss;
-    private String arnId;
+    private String regionArn;
 
     public App() {
         init(null);
@@ -33,10 +33,10 @@ public class App {
         switch (region) {
             case CN_Northwest_1:
             case CN_Beijing:
-                arnId = "arn:aws-cn";
+                regionArn = "arn:aws-cn";
                 break;
             default:
-                arnId = "arn:aws";
+                regionArn = "arn:aws";
                 break;
         }
     }
@@ -119,7 +119,7 @@ public class App {
      */
     private Policy getInitialPolicy() {
         return new Policy()
-                .withStatements(generateDenyAllActionsStatement());
+                .withStatements(generateDenyAllStatement());
     }
 
     /**
@@ -129,12 +129,12 @@ public class App {
      *
      * @return deny all actions statement
      */
-    private Statement generateDenyAllActionsStatement() {
+    private Statement generateDenyAllStatement() {
         Statement statement = new Statement(Statement.Effect.Deny)
                 .withActions(S3Actions.AllS3Actions)
                 .withPrincipals(Principal.All)
-                .withResources(new Resource(arnId + ":s3:::" + BUCKET_NAME + "/*"));
-        statement.setId(BUCKET_NAME + "-DenyAll");
+                .withResources(new Resource(getResourceArn("/")));
+        statement.setId(getDenyAllStatementId());
         return statement;
     }
 
@@ -143,20 +143,69 @@ public class App {
      * 生成具有对桶路径全部操作权限的 statement
      * </p>
      *
-     * @param sid        statement id
-     * @param path       路径，以斜杠 / 开头
+     * @param path       资源路径
      * @param accountIds 用户 id
      * @return statement
      */
-    private Statement generateAllowAllActionsStatement(String sid, String path, List<String> accountIds) {
+    private Statement generateAllowAllActionsStatement(String path, List<String> accountIds) {
         Statement statement = new Statement(Statement.Effect.Allow)
                 .withActions(S3Actions.AllS3Actions)
-                .withResources(new Resource(arnId + ":s3:::" + BUCKET_NAME + path));
-        statement.setId(sid);
+                .withResources(new Resource(getResourceArn(path)));
+        statement.setId(getAllowAllActionsStatementId(path));
         for (String accountId : accountIds) {
             statement.withPrincipals(new Principal(accountId));
         }
         return statement;
+    }
+
+    private String getDenyAllStatementId() {
+        return "DenyAll";
+    }
+
+    private String getAllowAllActionsStatementId(String path) {
+        return normalizePath(path) + "-AllowAllActions";
+    }
+
+    /**
+     * <p>
+     * 标准化路径格式，变为 /a/b/c
+     * </p>
+     *
+     * @param path 路径
+     * @return 标准化后的路径
+     */
+    private String normalizePath(String path) {
+        if (path == null) {
+            path = "/";
+        }
+        if (!path.startsWith("/")) {
+            path = "/" + path;
+        }
+        if (path.endsWith("/") && path.length() != 1) {
+            path = path.substring(0, path.length() - 1);
+        }
+        return path;
+    }
+
+    /**
+     * <p>
+     * 生成资源的 arn
+     * </p>
+     *
+     * @param path 资源路径
+     * @return 资源 arn
+     */
+    private String getResourceArn(String path) {
+        path = normalizePath(path);
+        if (path.equals("/")) {
+            path = "";
+        }
+        return regionArn + ":s3:::" + BUCKET_NAME + path + "/*";
+    }
+
+    // TODO 完善 user arn，目前看起来 ceph 与 S3 的 user arn 规则并不互通
+    private String getUserArn(String account, String user) {
+        return "";
     }
 
 }
