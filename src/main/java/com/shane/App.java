@@ -8,6 +8,8 @@ import com.amazonaws.auth.policy.actions.S3Actions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.Region;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class App {
@@ -122,6 +124,22 @@ public class App {
                 .withStatements(generateDenyAllStatement());
     }
 
+    public boolean updatePolicy(Long workspaceId, List<String> userArns) {
+        Policy policy = oss.getBucketPolicy(BUCKET_NAME);
+        Collection<Statement> statements = policy.getStatements();
+        cleanWorkspaceStatements(statements, workspaceId);
+        if (userArns.size() != 0) {
+            statements.add(generateAllowAllActionsStatement(getWorkspacePath(workspaceId), userArns));
+        }
+        policy.setStatements(statements);
+        return oss.setBucketPolicy(BUCKET_NAME, policy);
+    }
+
+    private void cleanWorkspaceStatements(Collection<Statement> statements, Long workspaceId) {
+        String allowAllSid = getAllowAllActionsStatementId(getWorkspacePath(workspaceId));
+        statements.removeIf(statement -> statement.getId().equals(allowAllSid));
+    }
+
     /**
      * <p>
      * 生成组织所有行为的 statement，sid 为 DenyAll
@@ -143,18 +161,16 @@ public class App {
      * 生成具有对桶路径全部操作权限的 statement
      * </p>
      *
-     * @param path       资源路径
-     * @param accountIds 用户 id
+     * @param path     资源路径
+     * @param userArns 用户 arn 列表
      * @return statement
      */
-    private Statement generateAllowAllActionsStatement(String path, List<String> accountIds) {
+    private Statement generateAllowAllActionsStatement(String path, List<String> userArns) {
         Statement statement = new Statement(Statement.Effect.Allow)
-                .withActions(S3Actions.AllS3Actions)
-                .withResources(new Resource(getResourceArn(path)));
+                .withResources(new Resource(getResourceArn(path)))
+                .withActions(S3Actions.AllS3Actions);
+        statement.setPrincipals(convertArnsToPrincipals(userArns));
         statement.setId(getAllowAllActionsStatementId(path));
-        for (String accountId : accountIds) {
-            statement.withPrincipals(new Principal(accountId));
-        }
         return statement;
     }
 
@@ -164,6 +180,10 @@ public class App {
 
     private String getAllowAllActionsStatementId(String path) {
         return normalizePath(path) + "-AllowAllActions";
+    }
+
+    private String getWorkspacePath(Long workspaceId) {
+        return "/workspaces/" + workspaceId;
     }
 
     /**
@@ -203,9 +223,20 @@ public class App {
         return regionArn + ":s3:::" + BUCKET_NAME + path + "/*";
     }
 
-    // TODO 完善 user arn，目前看起来 ceph 与 S3 的 user arn 规则并不互通
-    private String getUserArn(String account, String user) {
-        return "";
+    /**
+     * <p>
+     * 将用户 arn 列表转换为  principal 列表
+     * </p>
+     *
+     * @param userArns 用户 arn 列表
+     * @return principal 列表
+     */
+    private List<Principal> convertArnsToPrincipals(List<String> userArns) {
+        ArrayList<Principal> principals = new ArrayList<>();
+        for (String arn : userArns) {
+            principals.add(new Principal("AWS", arn, false));
+        }
+        return principals;
     }
 
 }
