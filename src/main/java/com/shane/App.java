@@ -1,6 +1,7 @@
 package com.shane;
 
 import com.amazonaws.auth.policy.Policy;
+import com.amazonaws.auth.policy.PolicyReaderOptions;
 import com.amazonaws.auth.policy.Principal;
 import com.amazonaws.auth.policy.Resource;
 import com.amazonaws.auth.policy.Statement;
@@ -78,7 +79,7 @@ public class App {
         }
         System.out.println("> enable versioning success");
         System.out.println("> init policy...");
-        boolean r3 = oss.setBucketPolicy(BUCKET_NAME, getInitialPolicy());
+        boolean r3 = oss.setBucketPolicy(BUCKET_NAME, fixAwsCnProblem(getInitialPolicy()));
         if (!r3) {
             System.out.println("> init policy failure");
             rollbackInitBucket(true);
@@ -132,7 +133,7 @@ public class App {
             statements.add(generateAllowAllActionsStatement(getWorkspacePath(workspaceId), userArns));
         }
         policy.setStatements(statements);
-        return oss.setBucketPolicy(BUCKET_NAME, policy);
+        return oss.setBucketPolicy(BUCKET_NAME, fixAwsCnProblem(policy));
     }
 
     private void cleanWorkspaceStatements(Collection<Statement> statements, Long workspaceId) {
@@ -237,6 +238,20 @@ public class App {
             principals.add(new Principal("AWS", arn, false));
         }
         return principals;
+    }
+
+    /**
+     * <p>
+     * 修复 policy 中的 principal 在创建时会自动将 aws-cn 转换为 awscn 的问题
+     * </p>
+     *
+     * @param policy 要修复的 policy
+     * @return 修复后的 policy
+     */
+    private Policy fixAwsCnProblem(Policy policy) {
+        String policyJson = policy.toJson();
+        String fixedJson = policyJson.replace("awscn", "aws-cn");
+        return Policy.fromJson(fixedJson, new PolicyReaderOptions().withStripAwsPrincipalIdHyphensEnabled(false));
     }
 
 }
