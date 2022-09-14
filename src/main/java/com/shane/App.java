@@ -7,7 +7,15 @@ import com.amazonaws.auth.policy.Resource;
 import com.amazonaws.auth.policy.Statement;
 import com.amazonaws.auth.policy.actions.S3Actions;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.amazonaws.services.s3.model.Bucket;
+import com.amazonaws.services.s3.model.BucketPolicy;
+import com.amazonaws.services.s3.model.BucketVersioningConfiguration;
+import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.Region;
+import com.amazonaws.services.s3.model.SetBucketVersioningConfigurationRequest;
+import com.amazonaws.services.s3.model.ownership.ObjectOwnership;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,7 +27,7 @@ public class App {
     // 存储桶命名规则 https://docs.amazonaws.cn/AmazonS3/latest/userguide/bucketnamingrules.html
     private static final String BUCKET_NAME = "aml-bucket";
 
-    private ObjectStorageService oss;
+    private AmazonS3 s3;
     private String regionArn;
 
     public App() {
@@ -31,8 +39,8 @@ public class App {
     }
 
     private void init(AmazonS3 s3) {
-        oss = new ObjectStorageService(s3);
-        Region region = oss.getRegion();
+        this.s3 = s3 == null ? AmazonS3ClientBuilder.standard().build() : s3;
+        Region region = this.s3.getRegion();
         switch (region) {
             case CN_Northwest_1:
             case CN_Beijing:
@@ -54,7 +62,7 @@ public class App {
     public boolean initBucket() {
         System.out.printf("start init bucket [%s]\n", BUCKET_NAME);
         System.out.println("check bucket exist...");
-        boolean exist = oss.checkBucketExist(BUCKET_NAME);
+        boolean exist = checkBucketExist();
         if (exist) {
             // TODO 检测 bucket 归属权
             // TODO 检查 bucket 设置
@@ -63,7 +71,7 @@ public class App {
         }
         System.out.println("bucket does not exist");
         System.out.println("> create bucket...");
-        boolean r1 = oss.createBucket(BUCKET_NAME);
+        boolean r1 = createBucket();
         if (!r1) {
             System.out.println("> create bucket failure");
             rollbackInitBucket(false);
@@ -71,7 +79,7 @@ public class App {
         }
         System.out.println("> create bucket success");
         System.out.println("> enable versioning...");
-        boolean r2 = oss.enableBucketVersioning(BUCKET_NAME);
+        boolean r2 = enableBucketVersioning();
         if (!r2) {
             System.out.println("> enable versioning failure");
             rollbackInitBucket(true);
@@ -84,7 +92,7 @@ public class App {
 
     /**
      * <p>
-     * {@link ObjectStorageService#deleteBucket(String)}
+     * 当 bucket 初始化失败时回滚
      * </p>
      *
      * @param bucketCreated 桶是否已经创建
@@ -94,7 +102,7 @@ public class App {
         System.out.println("start rollback");
         if (bucketCreated) {
             System.out.println("> delete bucket...");
-            boolean r = oss.deleteBucket(BUCKET_NAME);
+            boolean r = deleteBucket();
             if (!r) {
                 System.out.println("> delete bucket failure");
                 System.out.println("rollback failure");
@@ -115,14 +123,14 @@ public class App {
      * @return 操作结果
      */
     public boolean updatePolicy(Long workspaceId, List<String> userArns) {
-        Policy policy = oss.getBucketPolicy(BUCKET_NAME);
+        Policy policy = getBucketPolicy();
         Collection<Statement> statements = policy.getStatements();
         cleanWorkspaceStatements(statements, workspaceId);
         if (userArns.size() != 0) {
             statements.add(generateAllowAllActionsStatement(getWorkspacePath(workspaceId), userArns));
         }
         policy.setStatements(statements);
-        return oss.setBucketPolicy(BUCKET_NAME, fixAwsCnProblem(policy));
+        return setBucketPolicy(fixAwsCnProblem(policy));
     }
 
     /**
@@ -229,6 +237,144 @@ public class App {
         String policyJson = policy.toJson();
         String fixedJson = policyJson.replace("awscn", "aws-cn");
         return Policy.fromJson(fixedJson, new PolicyReaderOptions().withStripAwsPrincipalIdHyphensEnabled(false));
+    }
+
+    ////////////////
+    // S3 Actions //
+    ////////////////
+
+    /**
+     * <p>
+     * 列出所有的桶
+     * </p>
+     *
+     * @return 桶列表
+     */
+    private List<Bucket> listBuckets() {
+        return s3.listBuckets();
+    }
+
+    /**
+     * <p>
+     * 获取桶
+     * </p>
+     *
+     * @return bucket，没有的话返回 null
+     */
+    // TODO 用于校验桶的持有者
+    private Bucket getBucket() {
+        Bucket bucket = null;
+        List<Bucket> buckets = listBuckets();
+        for (Bucket b : buckets) {
+            if (b.getName().equals(BUCKET_NAME)) {
+                bucket = b;
+            }
+        }
+        return bucket;
+    }
+
+    /**
+     * <p>
+     * 检查桶名是否存在
+     * </p>
+     *
+     * @return true：存在 / false：不存在
+     */
+    private boolean checkBucketExist() {
+        return s3.doesBucketExistV2(BUCKET_NAME);
+    }
+
+    /**
+     * <p>
+     * 创建桶
+     * </p>
+     *
+     * @return 操作结果
+     */
+    private boolean createBucket() {
+        try {
+            CreateBucketRequest request = new CreateBucketRequest(BUCKET_NAME)
+                    .withCannedAcl(CannedAccessControlList.Private)
+                    .withObjectOwnership(ObjectOwnership.BucketOwnerEnforced);
+            s3.createBucket(request);
+        } catch (Exception e) {
+            System.err.printf("error create bucket [%s]: %s", BUCKET_NAME, e);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * <p>
+     * 删除桶
+     * </p>
+     *
+     * @return 操作结果
+     */
+    private boolean deleteBucket() {
+        try {
+            s3.deleteBucket(BUCKET_NAME);
+        } catch (Exception e) {
+            System.err.printf("error delete bucket [%s]: %s", BUCKET_NAME, e);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * <p>
+     * 开启桶的版本控制
+     * </p>
+     *
+     * @return 操作结果
+     */
+    private boolean enableBucketVersioning() {
+        try {
+            BucketVersioningConfiguration configuration = new BucketVersioningConfiguration(BucketVersioningConfiguration.ENABLED);
+            SetBucketVersioningConfigurationRequest request = new SetBucketVersioningConfigurationRequest(BUCKET_NAME, configuration);
+            s3.setBucketVersioningConfiguration(request);
+        } catch (Exception e) {
+            System.err.printf("error enable versioning for bucket [%s]: %s", BUCKET_NAME, e);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * <p>
+     * 设置桶策略
+     * </p>
+     *
+     * @param policy 桶的策略
+     * @return 操作结果
+     */
+    private boolean setBucketPolicy(Policy policy) {
+        try {
+            s3.setBucketPolicy(BUCKET_NAME, policy.toJson());
+        } catch (Exception e) {
+            System.err.printf("error set policy [%s] for bucket [%s]: %s", policy.toJson(), BUCKET_NAME, e);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * <p>
+     * 获取桶策略
+     * </p>
+     *
+     * @return 桶的策略
+     */
+    private Policy getBucketPolicy() {
+        Policy policy = null;
+        try {
+            BucketPolicy bucketPolicy = s3.getBucketPolicy(BUCKET_NAME);
+            String policyText = bucketPolicy.getPolicyText();
+            policy = policyText == null ? new Policy() : Policy.fromJson(policyText);
+        } catch (Exception e) {
+            System.err.printf("error get policy from bucket [%s]: %s", BUCKET_NAME, e);
+        }
+        return policy;
     }
 
 }
