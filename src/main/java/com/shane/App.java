@@ -64,9 +64,13 @@ public class App {
         System.out.println("check bucket exist...");
         boolean exist = checkBucketExist();
         if (exist) {
-            // TODO 检测 bucket 归属权
-            // TODO 检查 bucket 设置
-            System.out.println("bucket already exist, skip init");
+            System.out.println("bucket already exist");
+            System.out.println("check bucket owner...");
+            if (!checkBucketOwner()) {
+                System.out.println("check failed, unexpected owner");
+                return false;
+            }
+            System.out.println("check passed, skip init");
             return true;
         }
         System.out.println("bucket does not exist");
@@ -88,6 +92,17 @@ public class App {
         System.out.println("> enable versioning success");
         System.out.println("init bucket success");
         return true;
+    }
+
+    /**
+     * <p>
+     * 检测 bucket 的归属权，判断桶是否由当前账户创建
+     * </p>
+     *
+     * @return 检测结果
+     */
+    private boolean checkBucketOwner() {
+        return s3.getS3AccountOwner().equals(getBucket().getOwner());
     }
 
     /**
