@@ -78,14 +78,6 @@ public class App {
             return false;
         }
         System.out.println("> enable versioning success");
-        System.out.println("> init policy...");
-        boolean r3 = oss.setBucketPolicy(BUCKET_NAME, fixAwsCnProblem(getInitialPolicy()));
-        if (!r3) {
-            System.out.println("> init policy failure");
-            rollbackInitBucket(true);
-            return false;
-        }
-        System.out.println("> init policy success");
         System.out.println("init bucket success");
         return true;
     }
@@ -115,16 +107,13 @@ public class App {
 
     /**
      * <p>
-     * 获取初始 policy
+     * 更新 policy，会首先删除目标 workspace 的所有 statement，然后重新插入该 workspace 的所有 statement
      * </p>
      *
-     * @return 初始 policy
+     * @param workspaceId workspace id
+     * @param userArns    用户 arn 列表
+     * @return 操作结果
      */
-    private Policy getInitialPolicy() {
-        return new Policy()
-                .withStatements(generateDenyAllStatement());
-    }
-
     public boolean updatePolicy(Long workspaceId, List<String> userArns) {
         Policy policy = oss.getBucketPolicy(BUCKET_NAME);
         Collection<Statement> statements = policy.getStatements();
@@ -136,25 +125,17 @@ public class App {
         return oss.setBucketPolicy(BUCKET_NAME, fixAwsCnProblem(policy));
     }
 
+    /**
+     * <p>
+     * 清除 bucket statements 中属于目标 workspace 的所有 statement
+     * </p>
+     *
+     * @param statements  bucket 的 statements
+     * @param workspaceId workspace id
+     */
     private void cleanWorkspaceStatements(Collection<Statement> statements, Long workspaceId) {
         String allowAllSid = getAllowAllActionsStatementId(getWorkspacePath(workspaceId));
         statements.removeIf(statement -> statement.getId().equals(allowAllSid));
-    }
-
-    /**
-     * <p>
-     * 生成组织所有行为的 statement，sid 为 DenyAll
-     * </p>
-     *
-     * @return deny all actions statement
-     */
-    private Statement generateDenyAllStatement() {
-        Statement statement = new Statement(Statement.Effect.Deny)
-                .withActions(S3Actions.AllS3Actions)
-                .withPrincipals(Principal.All)
-                .withResources(new Resource(getResourceArn("/")));
-        statement.setId(getDenyAllStatementId());
-        return statement;
     }
 
     /**
@@ -173,10 +154,6 @@ public class App {
         statement.setPrincipals(convertArnsToPrincipals(userArns));
         statement.setId(getAllowAllActionsStatementId(path));
         return statement;
-    }
-
-    private String getDenyAllStatementId() {
-        return "DenyAll";
     }
 
     private String getAllowAllActionsStatementId(String path) {

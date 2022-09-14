@@ -6,8 +6,11 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.BucketPolicy;
 import com.amazonaws.services.s3.model.BucketVersioningConfiguration;
+import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.Region;
 import com.amazonaws.services.s3.model.SetBucketVersioningConfigurationRequest;
+import com.amazonaws.services.s3.model.ownership.ObjectOwnership;
 
 import java.util.List;
 
@@ -96,7 +99,9 @@ public class ObjectStorageService {
      */
     public boolean createBucket(String bucketName) {
         try {
-            s3.createBucket(bucketName);
+            s3.createBucket(new CreateBucketRequest(bucketName)
+                    .withCannedAcl(CannedAccessControlList.Private)
+                    .withObjectOwnership(ObjectOwnership.BucketOwnerEnforced));
         } catch (Exception e) {
             System.err.printf("error create bucket [%s]: %s", bucketName, e);
             return false;
@@ -169,12 +174,12 @@ public class ObjectStorageService {
      * @param bucketName 桶的名称
      * @return 桶的策略
      */
-    // TODO 用于校验桶是否拥有初始权限
     public Policy getBucketPolicy(String bucketName) {
         Policy policy = null;
         try {
             BucketPolicy bucketPolicy = s3.getBucketPolicy(bucketName);
-            policy = Policy.fromJson(bucketPolicy.getPolicyText());
+            String policyText = bucketPolicy.getPolicyText();
+            policy = policyText == null ? new Policy() : Policy.fromJson(policyText);
         } catch (Exception e) {
             System.err.printf("error get policy from bucket [%s]: %s", bucketName, e);
         }
