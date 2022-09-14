@@ -276,7 +276,6 @@ public class App {
      *
      * @return bucket，没有的话返回 null
      */
-    // TODO 用于校验桶的持有者
     private Bucket getBucket() {
         Bucket bucket = null;
         List<Bucket> buckets = listBuckets();
