@@ -4,13 +4,13 @@ import org.junit.Test;
 
 import java.util.ArrayList;
 
-public class AppTest {
+public class PlatformTest {
 
-    final static App APP = new App();
+    final static Platform PLATFORM = new Platform();
 
     @Test
     public void testInitBucket() {
-        boolean b = APP.initBucket();
+        boolean b = PLATFORM.initBucket();
         System.out.println(b);
     }
 
@@ -20,7 +20,7 @@ public class AppTest {
         ArrayList<String> users = new ArrayList<>();
         users.add("arn:aws-cn:iam::111222333444:user/test1");
         users.add("arn:aws-cn:iam::111222333444:user/test2");
-        System.out.println(APP.updatePolicy(123123L, users));
+        System.out.println(PLATFORM.updatePolicy(123123L, users));
     }
 
 }

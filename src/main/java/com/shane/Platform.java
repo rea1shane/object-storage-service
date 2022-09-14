@@ -21,7 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-public class App {
+public class Platform {
 
     // TODO 通过读取配置文件或者传参
     // 存储桶命名规则 https://docs.amazonaws.cn/AmazonS3/latest/userguide/bucketnamingrules.html
@@ -30,11 +30,11 @@ public class App {
     private AmazonS3 s3;
     private String regionArn;
 
-    public App() {
+    public Platform() {
         init(null);
     }
 
-    public App(AmazonS3 s3) {
+    public Platform(AmazonS3 s3) {
         init(s3);
     }
 
