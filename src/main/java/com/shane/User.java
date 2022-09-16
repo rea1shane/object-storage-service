@@ -16,13 +16,13 @@ public class User {
     // TODO 通过 Spring 注入
     private ObjectStorage objectStorage = new ObjectStorage();
 
-    private AmazonS3 createClient(String accessKey, String secretKey) {
-        return objectStorage.createClient(accessKey, secretKey);
+    private AmazonS3 createClient(ObjectStorage.Token token) {
+        return objectStorage.createClient(token);
     }
 
-    public List<CommonSummary> listVersions(String accessKey, String secretKey, String prefix) {
-        AmazonS3 s3 = createClient(accessKey, secretKey);
-        VersionListing versionListing = listVersions(s3, prefix);
+    public List<CommonSummary> listVersions(ObjectStorage.Token token, Long workspaceId, String prefix) {
+        AmazonS3 s3 = createClient(token);
+        VersionListing versionListing = listVersions(s3, objectStorage.getWorkspacePath(workspaceId) + prefix);
 
         List<String> dirs = versionListing.getCommonPrefixes();
         List<DirectorySummaryVO> directorySummaryVOs = DirectorySummaryVO.generateDirectorySummaryVOList(dirs);

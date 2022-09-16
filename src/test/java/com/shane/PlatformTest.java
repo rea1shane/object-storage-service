@@ -6,7 +6,17 @@ import java.util.ArrayList;
 
 public class PlatformTest {
 
-    final static Platform PLATFORM = new Platform();
+    // TODO 提交代码时清除这两项数据
+    final static String ACCESS_KEY = "";
+    final static String SECRET_KEY = "";
+
+    final static ObjectStorage.Token TOKEN = ObjectStorage.Token.builder()
+            .accessKey(ACCESS_KEY)
+            .secretKey(SECRET_KEY)
+            .build();
+
+    final static Platform PLATFORM = new Platform(TOKEN);
+    final static User USER = new User();
 
     @Test
     public void testInitBucket() {
@@ -18,8 +28,9 @@ public class PlatformTest {
     // TODO 测试共享用户是否可以修改 bucket 的 policy
     public void testUpdatePolicy() {
         ArrayList<String> users = new ArrayList<>();
-        users.add("arn:aws-cn:iam::111222333444:user/test1");
-        users.add("arn:aws-cn:iam::111222333444:user/test2");
+        // TODO 提交代码时清除这两项数据
+        users.add("");
+        users.add("");
         System.out.println(PLATFORM.updatePolicy(123123L, users));
     }
 

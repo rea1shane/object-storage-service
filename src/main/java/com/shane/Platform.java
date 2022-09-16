@@ -7,7 +7,6 @@ import com.amazonaws.auth.policy.Resource;
 import com.amazonaws.auth.policy.Statement;
 import com.amazonaws.auth.policy.actions.S3Actions;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.BucketPolicy;
 import com.amazonaws.services.s3.model.BucketVersioningConfiguration;
@@ -21,7 +20,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-// TODO 路径改为非 / 开头的
 public class Platform {
 
     // TODO 读取配置文件中的 ak / sk
@@ -33,17 +31,13 @@ public class Platform {
     private AmazonS3 s3;
     private String regionArn;
 
-    public Platform() {
-        init(null);
+    // TODO 使用读取配置文件的参数替代此构造函数
+    public Platform(ObjectStorage.Token token) {
+        init(token);
     }
 
-    public Platform(AmazonS3 s3) {
-        init(s3);
-    }
-
-    // TODO 使用 ak / sk 的 PostConstruct
-    private void init(AmazonS3 s3) {
-        this.s3 = s3 == null ? AmazonS3ClientBuilder.standard().build() : s3;
+    private void init(ObjectStorage.Token token) {
+        this.s3 = objectStorage.createClient(token);
         Region region = this.s3.getRegion();
         switch (region) {
             case CN_Northwest_1:
@@ -146,7 +140,7 @@ public class Platform {
         Collection<Statement> statements = policy.getStatements();
         cleanWorkspaceStatements(statements, workspaceId);
         if (userArns.size() != 0) {
-            statements.add(generateAllowAllActionsStatement(getWorkspacePath(workspaceId), userArns));
+            statements.add(generateAllowAllActionsStatement(objectStorage.getWorkspacePath(workspaceId), userArns));
         }
         policy.setStatements(statements);
         return setBucketPolicy(fixAwsCnProblem(policy));
@@ -161,7 +155,7 @@ public class Platform {
      * @param workspaceId workspace id
      */
     private void cleanWorkspaceStatements(Collection<Statement> statements, Long workspaceId) {
-        String allowAllSid = getAllowAllActionsStatementId(getWorkspacePath(workspaceId));
+        String allowAllSid = getAllowAllActionsStatementId(objectStorage.getWorkspacePath(workspaceId));
         statements.removeIf(statement -> statement.getId().equals(allowAllSid));
     }
 
@@ -187,13 +181,9 @@ public class Platform {
         return normalizePath(path) + "-AllowAllActions";
     }
 
-    private String getWorkspacePath(Long workspaceId) {
-        return "/workspaces/" + workspaceId;
-    }
-
     /**
      * <p>
-     * 标准化路径格式，变为 /a/b/c
+     * 标准化路径格式，变为 a/b/c/
      * </p>
      *
      * @param path 路径
@@ -201,13 +191,13 @@ public class Platform {
      */
     private String normalizePath(String path) {
         if (path == null) {
-            path = "/";
+            path = "";
         }
-        if (!path.startsWith("/")) {
-            path = "/" + path;
+        if (!path.endsWith("/")) {
+            path += "/";
         }
-        if (path.endsWith("/") && path.length() != 1) {
-            path = path.substring(0, path.length() - 1);
+        if (path.startsWith("/")) {
+            path = path.substring(1);
         }
         return path;
     }
@@ -222,10 +212,7 @@ public class Platform {
      */
     private String getResourceArn(String path) {
         path = normalizePath(path);
-        if (path.equals("/")) {
-            path = "";
-        }
-        return regionArn + ":s3:::" + objectStorage.getBucketName() + path + "/*";
+        return regionArn + ":s3:::" + objectStorage.getBucketName() + "/" + path + "*";
     }
 
     /**

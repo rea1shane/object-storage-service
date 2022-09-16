@@ -7,6 +7,7 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import lombok.Builder;
 
 import java.security.InvalidParameterException;
 
@@ -24,14 +25,13 @@ public class ObjectStorage {
      * 创建一个 s3 客户端用于对对象存储进行操作，
      * </p>
      *
-     * @param accessKey accessKey
-     * @param secretKey secretKey
+     * @param token 对象存储身份令牌
      * @return s3 客户端
      */
-    protected AmazonS3 createClient(String accessKey, String secretKey) {
+    protected AmazonS3 createClient(Token token) {
         AmazonS3 client;
 
-        AWSCredentials awsCredentials = new BasicAWSCredentials(accessKey, secretKey);
+        AWSCredentials awsCredentials = new BasicAWSCredentials(token.accessKey, token.secretKey);
         AWSCredentialsProvider awsCredentialsProvider = new AWSStaticCredentialsProvider(awsCredentials);
 
         AmazonS3ClientBuilder amazonS3ClientBuilder = AmazonS3ClientBuilder
@@ -66,6 +66,29 @@ public class ObjectStorage {
      */
     protected String getBucketName() {
         return bucketName;
+    }
+
+    /**
+     * <p>
+     * 获取 workspace 的存储路径
+     * </p>
+     *
+     * @param workspaceId workspace id
+     * @return workspace 的存储路径
+     */
+    protected String getWorkspacePath(Long workspaceId) {
+        return "workspaces/" + workspaceId + "/";
+    }
+
+    /**
+     * <p>
+     * 对象存储身份令牌
+     * </p>
+     */
+    @Builder
+    public static class Token {
+        private String accessKey;
+        private String secretKey;
     }
 
 }
