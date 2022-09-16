@@ -21,11 +21,14 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+// TODO 路径改为非 / 开头的
 public class Platform {
 
-    // TODO 通过读取配置文件或者传参
-    // 存储桶命名规则 https://docs.amazonaws.cn/AmazonS3/latest/userguide/bucketnamingrules.html
-    private static final String BUCKET_NAME = "aml-bucket";
+    // TODO 读取配置文件中的 ak / sk
+    private String objectStoragePlatformAccessKey;
+    private String objectStoragePlatformSecretKey;
+
+    private ObjectStorage objectStorage = new ObjectStorage();
 
     private AmazonS3 s3;
     private String regionArn;
@@ -38,6 +41,7 @@ public class Platform {
         init(s3);
     }
 
+    // TODO 使用 ak / sk 的 PostConstruct
     private void init(AmazonS3 s3) {
         this.s3 = s3 == null ? AmazonS3ClientBuilder.standard().build() : s3;
         Region region = this.s3.getRegion();
@@ -60,7 +64,7 @@ public class Platform {
      * @return 操作结果
      */
     public boolean initBucket() {
-        System.out.printf("start init bucket [%s]\n", BUCKET_NAME);
+        System.out.printf("start init bucket [%s]\n", objectStorage.getBucketName());
         System.out.println("check bucket exist...");
         boolean exist = checkBucketExist();
         if (exist) {
@@ -221,7 +225,7 @@ public class Platform {
         if (path.equals("/")) {
             path = "";
         }
-        return regionArn + ":s3:::" + BUCKET_NAME + path + "/*";
+        return regionArn + ":s3:::" + objectStorage.getBucketName() + path + "/*";
     }
 
     /**
@@ -280,7 +284,7 @@ public class Platform {
         Bucket bucket = null;
         List<Bucket> buckets = listBuckets();
         for (Bucket b : buckets) {
-            if (b.getName().equals(BUCKET_NAME)) {
+            if (b.getName().equals(objectStorage.getBucketName())) {
                 bucket = b;
             }
         }
@@ -295,7 +299,7 @@ public class Platform {
      * @return true：存在 / false：不存在
      */
     private boolean checkBucketExist() {
-        return s3.doesBucketExistV2(BUCKET_NAME);
+        return s3.doesBucketExistV2(objectStorage.getBucketName());
     }
 
     /**
@@ -307,12 +311,12 @@ public class Platform {
      */
     private boolean createBucket() {
         try {
-            CreateBucketRequest request = new CreateBucketRequest(BUCKET_NAME)
+            CreateBucketRequest request = new CreateBucketRequest(objectStorage.getBucketName())
                     .withCannedAcl(CannedAccessControlList.Private)
                     .withObjectOwnership(ObjectOwnership.BucketOwnerEnforced);
             s3.createBucket(request);
         } catch (Exception e) {
-            System.err.printf("error create bucket [%s]: %s", BUCKET_NAME, e);
+            System.err.printf("error create bucket [%s]: %s", objectStorage.getBucketName(), e);
             return false;
         }
         return true;
@@ -327,9 +331,9 @@ public class Platform {
      */
     private boolean deleteBucket() {
         try {
-            s3.deleteBucket(BUCKET_NAME);
+            s3.deleteBucket(objectStorage.getBucketName());
         } catch (Exception e) {
-            System.err.printf("error delete bucket [%s]: %s", BUCKET_NAME, e);
+            System.err.printf("error delete bucket [%s]: %s", objectStorage.getBucketName(), e);
             return false;
         }
         return true;
@@ -345,10 +349,10 @@ public class Platform {
     private boolean enableBucketVersioning() {
         try {
             BucketVersioningConfiguration configuration = new BucketVersioningConfiguration(BucketVersioningConfiguration.ENABLED);
-            SetBucketVersioningConfigurationRequest request = new SetBucketVersioningConfigurationRequest(BUCKET_NAME, configuration);
+            SetBucketVersioningConfigurationRequest request = new SetBucketVersioningConfigurationRequest(objectStorage.getBucketName(), configuration);
             s3.setBucketVersioningConfiguration(request);
         } catch (Exception e) {
-            System.err.printf("error enable versioning for bucket [%s]: %s", BUCKET_NAME, e);
+            System.err.printf("error enable versioning for bucket [%s]: %s", objectStorage.getBucketName(), e);
             return false;
         }
         return true;
@@ -364,9 +368,9 @@ public class Platform {
      */
     private boolean setBucketPolicy(Policy policy) {
         try {
-            s3.setBucketPolicy(BUCKET_NAME, policy.toJson());
+            s3.setBucketPolicy(objectStorage.getBucketName(), policy.toJson());
         } catch (Exception e) {
-            System.err.printf("error set policy [%s] for bucket [%s]: %s", policy.toJson(), BUCKET_NAME, e);
+            System.err.printf("error set policy [%s] for bucket [%s]: %s", policy.toJson(), objectStorage.getBucketName(), e);
             return false;
         }
         return true;
@@ -382,11 +386,11 @@ public class Platform {
     private Policy getBucketPolicy() {
         Policy policy = null;
         try {
-            BucketPolicy bucketPolicy = s3.getBucketPolicy(BUCKET_NAME);
+            BucketPolicy bucketPolicy = s3.getBucketPolicy(objectStorage.getBucketName());
             String policyText = bucketPolicy.getPolicyText();
             policy = policyText == null ? new Policy() : Policy.fromJson(policyText);
         } catch (Exception e) {
-            System.err.printf("error get policy from bucket [%s]: %s", BUCKET_NAME, e);
+            System.err.printf("error get policy from bucket [%s]: %s", objectStorage.getBucketName(), e);
         }
         return policy;
     }
