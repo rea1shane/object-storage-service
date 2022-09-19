@@ -1,6 +1,7 @@
 package com.shane;
 
 import com.shane.model.CommonSummary;
+import com.shane.model.VersionSummaryVO;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -37,9 +38,20 @@ public class ObjectStorageTest {
     }
 
     @Test
-    public void testListVersions() {
-        List<CommonSummary> commonSummaries = USER.listVersions(TOKEN, WORKSPACE_ID, "atlas-lib/");
+    public void testListLatestVersions() {
+        List<CommonSummary> commonSummaries = USER.listLatestVersions(TOKEN, "atlas-lib/");
         System.out.println(commonSummaries);
+    }
+
+    @Test
+    public void testListObjectVersions() {
+        List<VersionSummaryVO> versions = USER.listObjectVersions(TOKEN, "atlas-lib/.DS_Store");
+        System.out.println(versions);
+    }
+
+    @Test
+    public void testDeleteObject() {
+        USER.deleteObject(TOKEN, "atlas-lib/.DS_Store");
     }
 
 }

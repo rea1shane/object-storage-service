@@ -1,5 +1,6 @@
 package com.shane;
 
+import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.policy.Policy;
 import com.amazonaws.auth.policy.PolicyReaderOptions;
 import com.amazonaws.auth.policy.Principal;
@@ -245,6 +246,7 @@ public class Platform {
         return Policy.fromJson(fixedJson, new PolicyReaderOptions().withStripAwsPrincipalIdHyphensEnabled(false));
     }
 
+    // TODO 添加 try catch
     ////////////////
     // S3 Actions //
     ////////////////
@@ -302,7 +304,7 @@ public class Platform {
                     .withCannedAcl(CannedAccessControlList.Private)
                     .withObjectOwnership(ObjectOwnership.BucketOwnerEnforced);
             s3.createBucket(request);
-        } catch (Exception e) {
+        } catch (AmazonServiceException e) {
             System.err.printf("error create bucket [%s]: %s", objectStorage.getBucketName(), e);
             return false;
         }
@@ -319,7 +321,7 @@ public class Platform {
     private boolean deleteBucket() {
         try {
             s3.deleteBucket(objectStorage.getBucketName());
-        } catch (Exception e) {
+        } catch (AmazonServiceException e) {
             System.err.printf("error delete bucket [%s]: %s", objectStorage.getBucketName(), e);
             return false;
         }
@@ -338,7 +340,7 @@ public class Platform {
             BucketVersioningConfiguration configuration = new BucketVersioningConfiguration(BucketVersioningConfiguration.ENABLED);
             SetBucketVersioningConfigurationRequest request = new SetBucketVersioningConfigurationRequest(objectStorage.getBucketName(), configuration);
             s3.setBucketVersioningConfiguration(request);
-        } catch (Exception e) {
+        } catch (AmazonServiceException e) {
             System.err.printf("error enable versioning for bucket [%s]: %s", objectStorage.getBucketName(), e);
             return false;
         }
@@ -356,7 +358,7 @@ public class Platform {
     private boolean setBucketPolicy(Policy policy) {
         try {
             s3.setBucketPolicy(objectStorage.getBucketName(), policy.toJson());
-        } catch (Exception e) {
+        } catch (AmazonServiceException e) {
             System.err.printf("error set policy [%s] for bucket [%s]: %s", policy.toJson(), objectStorage.getBucketName(), e);
             return false;
         }
@@ -376,10 +378,20 @@ public class Platform {
             BucketPolicy bucketPolicy = s3.getBucketPolicy(objectStorage.getBucketName());
             String policyText = bucketPolicy.getPolicyText();
             policy = policyText == null ? new Policy() : Policy.fromJson(policyText);
-        } catch (Exception e) {
+        } catch (AmazonServiceException e) {
             System.err.printf("error get policy from bucket [%s]: %s", objectStorage.getBucketName(), e);
         }
         return policy;
+    }
+
+    /**
+     * <p>
+     * 物理删除
+     * </p>
+     */
+    // TODO 用于清除桶中指定路径的数据
+    private void deleteVersion(String key, String versionId) throws AmazonServiceException {
+        s3.deleteVersion(objectStorage.getBucketName(), key, versionId);
     }
 
 }
