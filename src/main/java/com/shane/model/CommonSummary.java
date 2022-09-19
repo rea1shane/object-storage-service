@@ -26,7 +26,7 @@ public class CommonSummary implements Serializable {
      * 通过 key 转换为名称
      */
     public void setNameByKey() {
-        String[] strings = name.split("/");
+        String[] strings = key.split("/");
         name = strings[strings.length - 1];
         if (type == Type.DIRECTORY) {
             name += "/";

@@ -1,15 +1,16 @@
 package com.shane;
 
+import com.shane.model.CommonSummary;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.List;
 
-public class PlatformTest {
+public class ObjectStorageTest {
 
     // TODO 提交代码时清除这两项数据
     final static String ACCESS_KEY = "";
     final static String SECRET_KEY = "";
-
     final static ObjectStorage.Token TOKEN = ObjectStorage.Token.builder()
             .accessKey(ACCESS_KEY)
             .secretKey(SECRET_KEY)
@@ -17,6 +18,7 @@ public class PlatformTest {
 
     final static Platform PLATFORM = new Platform(TOKEN);
     final static User USER = new User();
+    final static Long WORKSPACE_ID = 123123L;
 
     @Test
     public void testInitBucket() {
@@ -31,7 +33,13 @@ public class PlatformTest {
         // TODO 提交代码时清除这两项数据
         users.add("");
         users.add("");
-        System.out.println(PLATFORM.updatePolicy(123123L, users));
+        System.out.println(PLATFORM.updatePolicy(WORKSPACE_ID, users));
+    }
+
+    @Test
+    public void testListVersions() {
+        List<CommonSummary> commonSummaries = USER.listVersions(TOKEN, WORKSPACE_ID, "atlas-lib/");
+        System.out.println(commonSummaries);
     }
 
 }

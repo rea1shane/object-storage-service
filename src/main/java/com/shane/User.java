@@ -13,6 +13,11 @@ import java.util.List;
 
 public class User {
 
+    // TODO 将这个类变为 service
+    public User() {
+
+    }
+
     // TODO 通过 Spring 注入
     private ObjectStorage objectStorage = new ObjectStorage();
 
