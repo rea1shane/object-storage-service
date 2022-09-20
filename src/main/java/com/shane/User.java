@@ -8,10 +8,13 @@ import com.amazonaws.services.s3.model.VersionListing;
 import com.shane.model.CommonSummary;
 import com.shane.model.DirectorySummaryVO;
 import com.shane.model.VersionSummaryVO;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 
+@Slf4j
 // TODO 类中添加 user service 直接读取对应的 ak / sk，传递用户 token 变为传递 user id
 public class User {
 
@@ -28,8 +31,7 @@ public class User {
     }
 
     public List<CommonSummary> listLatestVersions(ObjectStorage.Token token, String prefix) throws AmazonServiceException {
-        AmazonS3 s3 = createClient(token);
-        VersionListing versionListing = listVersions(s3, prefix);
+        VersionListing versionListing = listVersions(createClient(token), prefix);
 
         List<String> dirs = versionListing.getCommonPrefixes();
         List<DirectorySummaryVO> directorySummaryVOs = DirectorySummaryVO.generateDirectorySummaryVOList(dirs);
@@ -51,9 +53,12 @@ public class User {
         return VersionSummaryVO.generateVersionSummaryVOList(versions);
     }
 
-    public void deleteObject(ObjectStorage.Token token, String key) throws AmazonServiceException {
-        AmazonS3 s3 = createClient(token);
-        deleteObject(s3, key);
+    public boolean putObject(ObjectStorage.Token token, String key, InputStream inputStream) {
+        return putObject(createClient(token), key, inputStream);
+    }
+
+    public boolean deleteObject(ObjectStorage.Token token, String key) {
+        return deleteObject(createClient(token), key);
     }
 
     // TODO 做一个 exception handler，不同的 exception 返回不同的响应码
@@ -62,6 +67,11 @@ public class User {
     // S3 Actions //
     ////////////////
 
+    /**
+     * <p>
+     * 没有做分页，可以用 maxResults 做分页，需要配合 listNextBatch 方法
+     * </p>
+     */
     private VersionListing listVersions(AmazonS3 s3, String prefix) throws AmazonServiceException {
         return s3.listVersions(new ListVersionsRequest(
                 objectStorage.getBucketName(), prefix, null, null, "/", null
@@ -70,11 +80,32 @@ public class User {
 
     /**
      * <p>
+     * 上传文件，不带有 metadata，也没有接受返回值
+     * </p>
+     */
+    private boolean putObject(AmazonS3 s3, String key, InputStream inputStream) {
+        try {
+            s3.putObject(objectStorage.getBucketName(), key, inputStream, null);
+            return true;
+        } catch (AmazonServiceException e) {
+            log.error("[ User.putObject ]: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * <p>
      * 开启了版本控制后，此删除为逻辑删除
      * </p>
      */
-    private void deleteObject(AmazonS3 s3, String key) throws AmazonServiceException {
-        s3.deleteObject(objectStorage.getBucketName(), key);
+    private boolean deleteObject(AmazonS3 s3, String key) {
+        try {
+            s3.deleteObject(objectStorage.getBucketName(), key);
+            return true;
+        } catch (AmazonServiceException e) {
+            log.error("[ User.deleteObject ]: " + e);
+            return false;
+        }
     }
 
 }

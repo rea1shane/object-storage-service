@@ -4,6 +4,8 @@ import com.shane.model.CommonSummary;
 import com.shane.model.VersionSummaryVO;
 import org.junit.Test;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -50,8 +52,13 @@ public class ObjectStorageTest {
     }
 
     @Test
+    public void testPutObject() throws FileNotFoundException {
+        System.out.println(USER.putObject(TOKEN, "1.pdf", new FileInputStream("/Users/shane/Downloads/2022-01-20-S3权限控制.pdf")));
+    }
+
+    @Test
     public void testDeleteObject() {
-        USER.deleteObject(TOKEN, "atlas-lib/.DS_Store");
+        System.out.println(USER.deleteObject(TOKEN, "atlas-lib/.DS_Store"));
     }
 
 }
