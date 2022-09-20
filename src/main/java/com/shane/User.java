@@ -2,7 +2,10 @@ package com.shane;
 
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ListVersionsRequest;
+import com.amazonaws.services.s3.model.S3Object;
+import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3VersionSummary;
 import com.amazonaws.services.s3.model.VersionListing;
 import com.shane.model.CommonSummary;
@@ -10,7 +13,9 @@ import com.shane.model.DirectorySummaryVO;
 import com.shane.model.VersionSummaryVO;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -57,6 +62,27 @@ public class User {
         return putObject(createClient(token), key, inputStream);
     }
 
+    public boolean downloadVersion(ObjectStorage.Token token, String key, String versionId, OutputStream outputStream) {
+        S3Object version = getVersion(createClient(token), key, versionId);
+        if (version == null) {
+            return false;
+        }
+        S3ObjectInputStream inputStream = version.getObjectContent();
+        byte[] readBuf = new byte[1024];
+        int readLen;
+        try {
+            while ((readLen = inputStream.read(readBuf)) > 0) {
+                outputStream.write(readBuf, 0, readLen);
+            }
+            inputStream.close();
+            outputStream.close();
+            return true;
+        } catch (IOException e) {
+            log.error("[ User.downloadVersion # IOException ]: " + e);
+            return false;
+        }
+    }
+
     public boolean deleteObject(ObjectStorage.Token token, String key) {
         return deleteObject(createClient(token), key);
     }
@@ -69,13 +95,22 @@ public class User {
 
     /**
      * <p>
-     * 没有做分页，可以用 maxResults 做分页，需要配合 listNextBatch 方法
+     * 没有做分页，可以用 maxResults 做分页，需要配合 listNextBatchOfVersions 方法
      * </p>
      */
     private VersionListing listVersions(AmazonS3 s3, String prefix) throws AmazonServiceException {
         return s3.listVersions(new ListVersionsRequest(
                 objectStorage.getBucketName(), prefix, null, null, "/", null
         ));
+    }
+
+    private S3Object getVersion(AmazonS3 s3, String key, String versionId) {
+        try {
+            return s3.getObject(new GetObjectRequest(objectStorage.getBucketName(), key, versionId));
+        } catch (AmazonServiceException e) {
+            log.error("[ User.getVersion # AmazonServiceException ]: " + e);
+            return null;
+        }
     }
 
     /**
@@ -88,7 +123,7 @@ public class User {
             s3.putObject(objectStorage.getBucketName(), key, inputStream, null);
             return true;
         } catch (AmazonServiceException e) {
-            log.error("[ User.putObject ]: " + e);
+            log.error("[ User.putObject # AmazonServiceException ]: " + e);
             return false;
         }
     }
@@ -103,7 +138,7 @@ public class User {
             s3.deleteObject(objectStorage.getBucketName(), key);
             return true;
         } catch (AmazonServiceException e) {
-            log.error("[ User.deleteObject ]: " + e);
+            log.error("[ User.deleteObject # AmazonServiceException ]: " + e);
             return false;
         }
     }
