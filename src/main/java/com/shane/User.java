@@ -21,6 +21,10 @@ import java.util.List;
 
 @Slf4j
 // TODO 类中添加 user service 直接读取对应的 ak / sk，传递用户 token 变为传递 user id
+// TODO copy object
+// TODO move object (rename)
+// TODO !!! 批量文件夹
+// TODO !!! 批量删除
 public class User {
 
     // TODO 将这个类变为 service
@@ -76,11 +80,11 @@ public class User {
             }
             inputStream.close();
             outputStream.close();
-            return true;
         } catch (IOException e) {
             log.error("[ User.downloadVersion # IOException ]: " + e);
             return false;
         }
+        return true;
     }
 
     public boolean deleteObject(ObjectStorage.Token token, String key) {
@@ -105,12 +109,13 @@ public class User {
     }
 
     private S3Object getVersion(AmazonS3 s3, String key, String versionId) {
+        S3Object version = null;
         try {
-            return s3.getObject(new GetObjectRequest(objectStorage.getBucketName(), key, versionId));
+            version = s3.getObject(new GetObjectRequest(objectStorage.getBucketName(), key, versionId));
         } catch (AmazonServiceException e) {
             log.error("[ User.getVersion # AmazonServiceException ]: " + e);
-            return null;
         }
+        return version;
     }
 
     /**
@@ -121,11 +126,11 @@ public class User {
     private boolean putObject(AmazonS3 s3, String key, InputStream inputStream) {
         try {
             s3.putObject(objectStorage.getBucketName(), key, inputStream, null);
-            return true;
         } catch (AmazonServiceException e) {
             log.error("[ User.putObject # AmazonServiceException ]: " + e);
             return false;
         }
+        return true;
     }
 
     /**
@@ -136,11 +141,11 @@ public class User {
     private boolean deleteObject(AmazonS3 s3, String key) {
         try {
             s3.deleteObject(objectStorage.getBucketName(), key);
-            return true;
         } catch (AmazonServiceException e) {
             log.error("[ User.deleteObject # AmazonServiceException ]: " + e);
             return false;
         }
+        return true;
     }
 
 }

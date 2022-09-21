@@ -16,11 +16,13 @@ import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.Region;
 import com.amazonaws.services.s3.model.SetBucketVersioningConfigurationRequest;
 import com.amazonaws.services.s3.model.ownership.ObjectOwnership;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+@Slf4j
 public class Platform {
 
     // TODO 读取配置文件中的 ak / sk
@@ -59,37 +61,34 @@ public class Platform {
      * @return 操作结果
      */
     public boolean initBucket() {
-        System.out.printf("start init bucket [%s]\n", objectStorage.getBucketName());
-        System.out.println("check bucket exist...");
-        boolean exist = checkBucketExist();
-        if (exist) {
-            System.out.println("bucket already exist");
-            System.out.println("check bucket owner...");
-            if (!checkBucketOwner()) {
-                System.out.println("check failed, unexpected owner");
+        log.info(String.format("start init bucket [%s]", objectStorage.getBucketName()));
+        log.info("check bucket exist...");
+        if (doesBucketExist()) {
+            log.info("bucket already exist");
+            log.info("check bucket owner...");
+            if (!isBucketOwner()) {
+                log.error("check failed, unexpected owner");
                 return false;
             }
-            System.out.println("check passed, skip init");
-            return true;
+            log.info("check passed, skip init");
+        } else {
+            log.info("bucket does not exist");
+            log.info("> create bucket...");
+            if (!createBucket()) {
+                log.error("> create bucket failure");
+                rollbackInitBucket(false);
+                return false;
+            }
+            log.info("> create bucket success");
+            log.info("> enable versioning...");
+            if (!enableBucketVersioning()) {
+                log.error("> enable versioning failure");
+                rollbackInitBucket(true);
+                return false;
+            }
+            log.info("> enable versioning success");
+            log.info("init bucket success");
         }
-        System.out.println("bucket does not exist");
-        System.out.println("> create bucket...");
-        boolean r1 = createBucket();
-        if (!r1) {
-            System.out.println("> create bucket failure");
-            rollbackInitBucket(false);
-            return false;
-        }
-        System.out.println("> create bucket success");
-        System.out.println("> enable versioning...");
-        boolean r2 = enableBucketVersioning();
-        if (!r2) {
-            System.out.println("> enable versioning failure");
-            rollbackInitBucket(true);
-            return false;
-        }
-        System.out.println("> enable versioning success");
-        System.out.println("init bucket success");
         return true;
     }
 
@@ -100,7 +99,7 @@ public class Platform {
      *
      * @return 检测结果
      */
-    private boolean checkBucketOwner() {
+    private boolean isBucketOwner() {
         return s3.getS3AccountOwner().equals(getBucket().getOwner());
     }
 
@@ -112,19 +111,18 @@ public class Platform {
      * @param bucketCreated 桶是否已经创建
      */
     private void rollbackInitBucket(boolean bucketCreated) {
-        System.out.println("init bucket failure");
-        System.out.println("start rollback");
+        log.warn("init bucket failure");
+        log.info("start rollback");
         if (bucketCreated) {
-            System.out.println("> delete bucket...");
-            boolean r = deleteBucket();
-            if (!r) {
-                System.out.println("> delete bucket failure");
-                System.out.println("rollback failure");
+            log.info("> delete bucket...");
+            if (!deleteBucket()) {
+                log.error("> delete bucket failure");
+                log.error("rollback failure");
                 return;
             }
-            System.out.println("> delete bucket success");
+            log.info("> delete bucket success");
         }
-        System.out.println("rollback success");
+        log.info("rollback success");
     }
 
     /**
@@ -246,7 +244,6 @@ public class Platform {
         return Policy.fromJson(fixedJson, new PolicyReaderOptions().withStripAwsPrincipalIdHyphensEnabled(false));
     }
 
-    // TODO 添加 try catch
     ////////////////
     // S3 Actions //
     ////////////////
@@ -287,7 +284,7 @@ public class Platform {
      *
      * @return true：存在 / false：不存在
      */
-    private boolean checkBucketExist() {
+    private boolean doesBucketExist() {
         return s3.doesBucketExistV2(objectStorage.getBucketName());
     }
 
@@ -305,7 +302,7 @@ public class Platform {
                     .withObjectOwnership(ObjectOwnership.BucketOwnerEnforced);
             s3.createBucket(request);
         } catch (AmazonServiceException e) {
-            System.err.printf("error create bucket [%s]: %s", objectStorage.getBucketName(), e);
+            log.error("[ Platform.createBucket # AmazonServiceException ]: " + e);
             return false;
         }
         return true;
@@ -322,7 +319,7 @@ public class Platform {
         try {
             s3.deleteBucket(objectStorage.getBucketName());
         } catch (AmazonServiceException e) {
-            System.err.printf("error delete bucket [%s]: %s", objectStorage.getBucketName(), e);
+            log.error("[ Platform.deleteBucket # AmazonServiceException ]: " + e);
             return false;
         }
         return true;
@@ -341,7 +338,7 @@ public class Platform {
             SetBucketVersioningConfigurationRequest request = new SetBucketVersioningConfigurationRequest(objectStorage.getBucketName(), configuration);
             s3.setBucketVersioningConfiguration(request);
         } catch (AmazonServiceException e) {
-            System.err.printf("error enable versioning for bucket [%s]: %s", objectStorage.getBucketName(), e);
+            log.error("[ Platform.enableBucketVersioning # AmazonServiceException ]: " + e);
             return false;
         }
         return true;
@@ -359,7 +356,7 @@ public class Platform {
         try {
             s3.setBucketPolicy(objectStorage.getBucketName(), policy.toJson());
         } catch (AmazonServiceException e) {
-            System.err.printf("error set policy [%s] for bucket [%s]: %s", policy.toJson(), objectStorage.getBucketName(), e);
+            log.error("[ Platform.setBucketPolicy # AmazonServiceException ]: " + e);
             return false;
         }
         return true;
@@ -379,7 +376,7 @@ public class Platform {
             String policyText = bucketPolicy.getPolicyText();
             policy = policyText == null ? new Policy() : Policy.fromJson(policyText);
         } catch (AmazonServiceException e) {
-            System.err.printf("error get policy from bucket [%s]: %s", objectStorage.getBucketName(), e);
+            log.error("[ Platform.getBucketPolicy # AmazonServiceException ]: " + e);
         }
         return policy;
     }
@@ -390,8 +387,14 @@ public class Platform {
      * </p>
      */
     // TODO 用于清除桶中指定路径的数据
-    private void deleteVersion(String key, String versionId) throws AmazonServiceException {
-        s3.deleteVersion(objectStorage.getBucketName(), key, versionId);
+    private boolean deleteVersion(String key, String versionId) throws AmazonServiceException {
+        try {
+            s3.deleteVersion(objectStorage.getBucketName(), key, versionId);
+        } catch (AmazonServiceException e) {
+            log.error("[ Platform.getBucketPolicy # AmazonServiceException ]: " + e);
+            return false;
+        }
+        return true;
     }
 
 }
