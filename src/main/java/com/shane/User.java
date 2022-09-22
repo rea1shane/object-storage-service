@@ -12,6 +12,7 @@ import com.shane.model.CommonSummary;
 import com.shane.model.DirectorySummaryVO;
 import com.shane.model.VersionSummaryVO;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.impl.io.EmptyInputStream;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -60,6 +61,10 @@ public class User {
         List<S3VersionSummary> versions = versionListing.getVersionSummaries();
         versions.removeIf(version -> !version.getKey().equals(key));
         return VersionSummaryVO.generateVersionSummaryVOList(versions);
+    }
+
+    public boolean mkdir(ObjectStorage.Token token, String path) {
+        return putObject(createClient(token), path, EmptyInputStream.INSTANCE);
     }
 
     public boolean putObject(ObjectStorage.Token token, String key, InputStream inputStream) {

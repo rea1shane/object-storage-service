@@ -53,6 +53,11 @@ public class ObjectStorageTest {
     }
 
     @Test
+    public void testMkdir() {
+        System.out.println(USER.mkdir(TOKEN, "qqqqqq/aaaaa/ccccc/"));
+    }
+
+    @Test
     public void testPutObject() throws FileNotFoundException {
         System.out.println(USER.putObject(TOKEN, "1.pdf", new FileInputStream("/Users/shane/Downloads/2022-01-20-S3权限控制.pdf")));
     }
