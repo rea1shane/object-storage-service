@@ -68,8 +68,15 @@ public class ObjectStorageTest {
     }
 
     @Test
-    public void testDeleteObject() {
-        System.out.println(USER.deleteObject(TOKEN, "atlas-lib/.DS_Store"));
+    public void testDeleteDirectory() {
+        System.out.println(USER.deleteDirectory(TOKEN, "atlas-lib/backup/"));
+    }
+
+    @Test
+    public void testDeleteObjects() {
+        ArrayList<String> deleteKeys = new ArrayList<>();
+        deleteKeys.add("atlas-lib/.DS_Store");
+        System.out.println(USER.deleteObjects(TOKEN, deleteKeys));
     }
 
 }

@@ -6,6 +6,7 @@ import com.amazonaws.services.s3.model.GetObjectRequest;
 import com.amazonaws.services.s3.model.ListVersionsRequest;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 import com.amazonaws.services.s3.model.S3VersionSummary;
 import com.amazonaws.services.s3.model.VersionListing;
 import com.shane.model.CommonSummary;
@@ -19,13 +20,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 // TODO 类中添加 user service 直接读取对应的 ak / sk，传递用户 token 变为传递 user id
 // TODO copy object
-// TODO move object (rename)
-// TODO !!! 批量文件夹
-// TODO !!! 批量删除
+// TODO move object (rename object)
 public class User {
 
     // TODO 将这个类变为 service
@@ -92,8 +92,12 @@ public class User {
         return true;
     }
 
-    public boolean deleteObject(ObjectStorage.Token token, String key) {
-        return deleteObject(createClient(token), key);
+    public boolean deleteDirectory(ObjectStorage.Token token, String path) {
+        return deleteDirectory(createClient(token), path);
+    }
+
+    public boolean deleteObjects(ObjectStorage.Token token, List<String> keys) {
+        return deleteObjects(createClient(token), keys);
     }
 
     // TODO 做一个 exception handler，不同的 exception 返回不同的响应码
@@ -138,16 +142,25 @@ public class User {
         return true;
     }
 
+    private boolean deleteDirectory(AmazonS3 s3, String path) {
+        List<S3ObjectSummary> objectSummaries = s3.listObjects(objectStorage.getBucketName(), path).getObjectSummaries();
+        List<String> deleteKeys = objectSummaries.stream().map(S3ObjectSummary::getKey).collect(Collectors.toList());
+        return deleteObjects(s3, deleteKeys);
+    }
+
     /**
      * <p>
      * 开启了版本控制后，此删除为逻辑删除
      * </p>
+     * <p>
+     * 批量删除
+     * </p>
      */
-    private boolean deleteObject(AmazonS3 s3, String key) {
+    private boolean deleteObjects(AmazonS3 s3, List<String> keys) {
         try {
-            s3.deleteObject(objectStorage.getBucketName(), key);
+            keys.forEach(key -> s3.deleteObject(objectStorage.getBucketName(), key));
         } catch (AmazonServiceException e) {
-            log.error("[ User.deleteObject # AmazonServiceException ]: " + e);
+            log.error("[ User.deleteObjects # AmazonServiceException ]: " + e);
             return false;
         }
         return true;
