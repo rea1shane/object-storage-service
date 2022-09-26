@@ -154,9 +154,13 @@ public class Platform {
     public boolean updatePolicy(Long workspaceId, List<String> userArns) {
         Policy policy = getBucketPolicy();
         Collection<Statement> statements = policy.getStatements();
-        cleanWorkspaceStatements(statements, workspaceId);
+        clearWorkspaceStatements(statements, workspaceId);
         if (userArns.size() != 0) {
-            statements.add(generateAllowAllActionsStatement(getWorkspacePath(workspaceId), userArns));
+            for (StoragePartitionEnum e : StoragePartitionEnum.values()) {
+                if (e.isUserVisible()) {
+                    statements.add(generateAllowAllActionsStatement(getWorkspacePath(workspaceId, e), userArns));
+                }
+            }
         }
         policy.setStatements(statements);
         return setBucketPolicy(fixAwsCnProblem(policy));
@@ -170,9 +174,14 @@ public class Platform {
      * @param statements  bucket 的 statements
      * @param workspaceId workspace id
      */
-    private void cleanWorkspaceStatements(Collection<Statement> statements, Long workspaceId) {
-        String allowAllSid = getAllowAllActionsStatementId(getWorkspacePath(workspaceId));
-        statements.removeIf(statement -> statement.getId().equals(allowAllSid));
+    private void clearWorkspaceStatements(Collection<Statement> statements, Long workspaceId) {
+        ArrayList<String> needClearSids = new ArrayList<>();
+        for (StoragePartitionEnum e : StoragePartitionEnum.values()) {
+            if (e.isUserVisible()) {
+                needClearSids.add(getAllowAllActionsStatementId(getWorkspacePath(workspaceId, e)));
+            }
+        }
+        statements.removeIf(statement -> needClearSids.contains(statement.getId()));
     }
 
     /**
