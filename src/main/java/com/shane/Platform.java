@@ -16,6 +16,7 @@ import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.Region;
 import com.amazonaws.services.s3.model.SetBucketVersioningConfigurationRequest;
 import com.amazonaws.services.s3.model.ownership.ObjectOwnership;
+import com.shane.enums.StoragePartitionEnum;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -127,6 +128,22 @@ public class Platform {
 
     /**
      * <p>
+     * 获取 workspace 的存储路径
+     * </p>
+     *
+     * @param workspaceId workspace id
+     * @return workspace 的存储路径
+     */
+    public String getWorkspacePath(Long workspaceId) {
+        return "workspaces/" + workspaceId + "/";
+    }
+
+    public String getWorkspacePath(Long workspaceId, StoragePartitionEnum partition) {
+        return getWorkspacePath(workspaceId) + partition.getPath();
+    }
+
+    /**
+     * <p>
      * 更新 policy，会首先删除目标 workspace 的所有 statement，然后重新插入该 workspace 的所有 statement
      * </p>
      *
@@ -139,7 +156,7 @@ public class Platform {
         Collection<Statement> statements = policy.getStatements();
         cleanWorkspaceStatements(statements, workspaceId);
         if (userArns.size() != 0) {
-            statements.add(generateAllowAllActionsStatement(objectStorage.getWorkspacePath(workspaceId), userArns));
+            statements.add(generateAllowAllActionsStatement(getWorkspacePath(workspaceId), userArns));
         }
         policy.setStatements(statements);
         return setBucketPolicy(fixAwsCnProblem(policy));
@@ -154,7 +171,7 @@ public class Platform {
      * @param workspaceId workspace id
      */
     private void cleanWorkspaceStatements(Collection<Statement> statements, Long workspaceId) {
-        String allowAllSid = getAllowAllActionsStatementId(objectStorage.getWorkspacePath(workspaceId));
+        String allowAllSid = getAllowAllActionsStatementId(getWorkspacePath(workspaceId));
         statements.removeIf(statement -> statement.getId().equals(allowAllSid));
     }
 

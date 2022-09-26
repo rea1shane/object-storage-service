@@ -70,18 +70,6 @@ public class ObjectStorage {
 
     /**
      * <p>
-     * 获取 workspace 的存储路径
-     * </p>
-     *
-     * @param workspaceId workspace id
-     * @return workspace 的存储路径
-     */
-    protected String getWorkspacePath(Long workspaceId) {
-        return "workspaces/" + workspaceId + "/";
-    }
-
-    /**
-     * <p>
      * 对象存储身份令牌
      * </p>
      */
