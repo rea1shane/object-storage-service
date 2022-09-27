@@ -12,13 +12,17 @@ import com.amazonaws.services.s3.model.Bucket;
 import com.amazonaws.services.s3.model.BucketPolicy;
 import com.amazonaws.services.s3.model.BucketVersioningConfiguration;
 import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.CopyObjectRequest;
 import com.amazonaws.services.s3.model.CreateBucketRequest;
 import com.amazonaws.services.s3.model.Region;
+import com.amazonaws.services.s3.model.S3VersionSummary;
 import com.amazonaws.services.s3.model.SetBucketVersioningConfigurationRequest;
+import com.amazonaws.services.s3.model.VersionListing;
 import com.amazonaws.services.s3.model.ownership.ObjectOwnership;
 import com.shane.enums.StoragePartitionEnum;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -134,7 +138,7 @@ public class Platform {
      * @param workspaceId workspace id
      * @return workspace 的存储路径
      */
-    public String getWorkspacePath(Long workspaceId) {
+    private String getWorkspacePath(Long workspaceId) {
         return "workspaces/" + workspaceId + "/";
     }
 
@@ -409,15 +413,99 @@ public class Platform {
 
     /**
      * <p>
+     * 包含子路径
+     * </p>
+     */
+    public VersionListing listVersionsContainsSubDirectory(String prefix) {
+        return s3.listVersions(objectStorage.getBucketName(), prefix);
+    }
+
+    /**
+     * <p>
+     * 复制文件夹下的所有内容到指定文件夹下，复制的内容为对象的最后一个版本
+     * </p>
+     * <p>
+     * !!! 注意，目标路径应当是一个空路径，因为复制失败的时候会清空目标路径下的所有文件
+     * </p>
+     */
+    public boolean copyDirectory(String sourcePath, String destinationPath) {
+        VersionListing versionListing = listVersionsContainsSubDirectory(sourcePath);
+        for (S3VersionSummary version : versionListing.getVersionSummaries()) {
+            if (version.isLatest() && !version.isDeleteMarker()
+                    && !copyVersion(version.getKey(), version.getVersionId(), version.getKey().replaceFirst(sourcePath, destinationPath))) {
+                deleteDirectory(destinationPath);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * <p>
+     * 复制对象的指定版本到指定路径，相当远上传一个对象到指定路径，所以重复复制会产生新的版本号
+     * </p>
+     * <p>
+     * 仅供平台使用，用户行为不能调用此接口
+     * </p>
+     */
+    public boolean copyVersion(String sourceKey, String sourceVersionId, String destinationKey) {
+        try {
+            s3.copyObject(new CopyObjectRequest(
+                    objectStorage.getBucketName(), sourceKey, sourceVersionId,
+                    objectStorage.getBucketName(), destinationKey));
+            return true;
+        } catch (AmazonServiceException e) {
+            log.error("[ Platform.copyVersion # AmazonServiceException ]: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * <p>
+     * 物理删除路径下的所有文件
+     * </p>
+     * <p>
+     * 仅供平台使用，用户行为不能调用此接口
+     * </p>
+     */
+    public boolean deleteDirectory(String path) {
+        VersionListing versionListing = listVersionsContainsSubDirectory(path);
+        for (S3VersionSummary version : versionListing.getVersionSummaries()) {
+            if (!deleteVersion(version.getKey(), version.getVersionId())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * <p>
      * 物理删除
      * </p>
      */
-    // TODO 用于清除桶中指定路径的数据
     private boolean deleteVersion(String key, String versionId) throws AmazonServiceException {
         try {
             s3.deleteVersion(objectStorage.getBucketName(), key, versionId);
         } catch (AmazonServiceException e) {
             log.error("[ Platform.getBucketPolicy # AmazonServiceException ]: " + e);
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * <p>
+     * 上传文件
+     * </p>
+     * <p>
+     * 仅供平台使用，用户行为不能调用此接口
+     * </p>
+     */
+    public boolean putObject(String key, InputStream inputStream) {
+        try {
+            s3.putObject(objectStorage.getBucketName(), key, inputStream, null);
+        } catch (AmazonServiceException e) {
+            log.error("[ Platform.putObject # AmazonServiceException ]: " + e);
             return false;
         }
         return true;

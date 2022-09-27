@@ -48,7 +48,7 @@ public class User {
         List<CommonSummary> result = new ArrayList<>(directorySummaryVOs);
 
         List<S3VersionSummary> versions = versionListing.getVersionSummaries();
-        versions.removeIf(version -> !version.isLatest());
+        versions.removeIf(version -> !version.isLatest() || version.isDeleteMarker());
         List<VersionSummaryVO> versionSummaryVOS = VersionSummaryVO.generateVersionSummaryVOList(versions);
         result.addAll(versionSummaryVOS);
 

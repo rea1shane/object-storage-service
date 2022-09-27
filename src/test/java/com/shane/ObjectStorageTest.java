@@ -1,5 +1,7 @@
 package com.shane;
 
+import com.amazonaws.services.s3.model.S3VersionSummary;
+import com.amazonaws.services.s3.model.VersionListing;
 import com.shane.model.CommonSummary;
 import com.shane.model.VersionSummaryVO;
 import org.junit.Test;
@@ -31,13 +33,40 @@ public class ObjectStorageTest {
     }
 
     @Test
-    // TODO 测试共享用户是否可以修改 bucket 的 policy
     public void testUpdatePolicy() {
         ArrayList<String> users = new ArrayList<>();
         // TODO 提交代码时清除这两项数据
         users.add("");
         users.add("");
         System.out.println(PLATFORM.updatePolicy(WORKSPACE_ID, users));
+    }
+
+    @Test
+    public void testListVersionsContainsSubDirectory() {
+        VersionListing versionListing = PLATFORM.listVersionsContainsSubDirectory("atlas-lib/");
+        for (S3VersionSummary version : versionListing.getVersionSummaries()) {
+            System.out.println(version.getKey() + " : " + version.getVersionId());
+        }
+    }
+
+    @Test
+    public void testCopyDirectory() {
+        System.out.println(PLATFORM.copyDirectory("atlas-lib/", "test-copy/"));
+    }
+
+    @Test
+    public void testCopyVersion() {
+        System.out.println(PLATFORM.copyVersion("1.pdf", "FppxiA7IuKAZr_Z3T7iIRcy3sNPL9kDJ", "4.pdf"));
+    }
+
+    @Test
+    public void testDeleteDirectoryPlatform() {
+        System.out.println(PLATFORM.deleteDirectory("test-copy/"));
+    }
+
+    @Test
+    public void testPutObjectPlatform() throws FileNotFoundException {
+        System.out.println(PLATFORM.putObject("1.pdf", new FileInputStream("/Users/shane/Downloads/2022-01-20-S3权限控制.pdf")));
     }
 
     @Test
