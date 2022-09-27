@@ -483,7 +483,7 @@ public class Platform {
      * 物理删除
      * </p>
      */
-    private boolean deleteVersion(String key, String versionId) throws AmazonServiceException {
+    private boolean deleteVersion(String key, String versionId) {
         try {
             s3.deleteVersion(objectStorage.getBucketName(), key, versionId);
         } catch (AmazonServiceException e) {
