@@ -404,7 +404,7 @@ public class Platform {
         try {
             BucketPolicy bucketPolicy = s3.getBucketPolicy(objectStorage.getBucketName());
             String policyText = bucketPolicy.getPolicyText();
-            policy = policyText == null ? new Policy() : Policy.fromJson(policyText);
+            policy = policyText == null ? new Policy() : Policy.fromJson(policyText, new PolicyReaderOptions().withStripAwsPrincipalIdHyphensEnabled(false));
         } catch (AmazonServiceException e) {
             log.error("[ Platform.getBucketPolicy # AmazonServiceException ]: " + e);
         }
@@ -431,10 +431,11 @@ public class Platform {
     public boolean copyDirectory(String sourcePath, String destinationPath) {
         VersionListing versionListing = listVersionsContainsSubDirectory(sourcePath);
         for (S3VersionSummary version : versionListing.getVersionSummaries()) {
-            if (version.isLatest() && !version.isDeleteMarker()
-                    && !copyVersion(version.getKey(), version.getVersionId(), version.getKey().replaceFirst(sourcePath, destinationPath))) {
-                deleteDirectory(destinationPath);
-                return false;
+            if (version.isLatest() && !version.isDeleteMarker()) {
+                if (!copyVersion(version.getKey(), version.getVersionId(), version.getKey().replaceFirst(sourcePath, destinationPath))) {
+                    deleteDirectory(destinationPath);
+                    return false;
+                }
             }
         }
         return true;

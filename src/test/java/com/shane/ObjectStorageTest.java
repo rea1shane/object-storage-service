@@ -45,7 +45,7 @@ public class ObjectStorageTest {
     public void testListVersionsContainsSubDirectory() {
         VersionListing versionListing = PLATFORM.listVersionsContainsSubDirectory("atlas-lib/");
         for (S3VersionSummary version : versionListing.getVersionSummaries()) {
-            System.out.println(version.getKey() + " : " + version.getVersionId());
+            System.out.println(version.getKey() + " : " + version.getVersionId() + " -> " + version.isLatest() + " -> " + version.isDeleteMarker());
         }
     }
 
